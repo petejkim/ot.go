@@ -26,46 +26,41 @@
   });
 
   var url = [location.protocol.replace('http', 'ws'), '//', location.host, '/ws'].join('');
-  var conn = App.conn = new WebSocket(url);
+  var conn = App.conn = new SocketConnection(url);
 
-  conn.onopen = function (evt) {
+  conn.on('open', function () {
     $('#conn-status').text('Connected');
     $('#join-btn').attr({ disabled: false});
-  };
+  });
 
-  conn.onclose = function (evt) {
+  conn.on('close', function () {
     $('#conn-status').text('Disconnected');
-  };
+  });
 
-  conn.onmessage = function (evt) {
-    var m = JSON.parse(evt.data);
-    console.log(m);
-
-    switch (m.event) {
-    case 'doc':
-      App.cm.setValue(m.data.document);
-      if (m.data.clients) {
-        App.users = App.users.concat(m.data.clients);
-        App.updateUsers();
-      }
-      break;
-    case 'join':
-      var clientId = m.data.client_id;
-      if (clientId) {
-        App.users.push(clientId);
-        App.updateUsers();
-      }
-      break;
-    case 'quit':
-      var clientId = m.data.client_id;
-      if (clientId) {
-        var i = App.users.indexOf(clientId);
-        if (i !== -1) {
-          App.users.splice(i, 1);
-        }
-        App.updateUsers();
-      }
-      break;
+  conn.on('doc', function (data) {
+    App.cm.setValue(data.document);
+    if (data.clients) {
+      App.users = App.users.concat(data.clients);
+      App.updateUsers();
     }
-  };
+  });
+
+  conn.on('join', function (data) {
+    var clientId = data.client_id;
+    if (clientId) {
+      App.users.push(clientId);
+      App.updateUsers();
+    }
+  });
+
+  conn.on('quit', function (data) {
+    var clientId = data.client_id;
+    if (clientId) {
+      var i = App.users.indexOf(clientId);
+      if (i !== -1) {
+        App.users.splice(i, 1);
+      }
+      App.updateUsers();
+    }
+  });
 }());
