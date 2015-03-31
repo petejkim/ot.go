@@ -8,6 +8,8 @@ import (
 var (
 	ErrBaseLenMismatch = errors.New("ot: base length mismatch")
 	ErrTransformFailed = errors.New("ot: transform failed")
+	ErrMarshalFailed   = errors.New("ot: marshal failed")
+	ErrUnmarshalFailed = errors.New("ot: unmarshal failed")
 )
 
 type Op struct {
@@ -132,6 +134,20 @@ func (t *TextOperation) At(i int) *Op {
 		return nil
 	}
 	return t.Ops[i]
+}
+
+func (t *TextOperation) Marshal() []interface{} {
+	ops := make([]interface{}, len(t.Ops))
+
+	for i, o := range t.Ops {
+		if o.S == "" {
+			ops[i] = o.N
+		} else {
+			ops[i] = o.S
+		}
+	}
+
+	return ops
 }
 
 func IsRetain(op *Op) bool {
@@ -265,4 +281,32 @@ func Transform(a, b *TextOperation) (*TextOperation, *TextOperation, error) {
 	}
 
 	return a1, b1, nil
+}
+
+func Unmarshal(ops []interface{}) (*TextOperation, error) {
+	top := &TextOperation{}
+	for _, o := range ops {
+		switch o.(type) {
+		case int:
+			n := o.(int)
+			if n > 0 {
+				top.Retain(n)
+			} else {
+				top.Delete(-n)
+			}
+		case float64:
+			n := int(o.(float64))
+			if n > 0 {
+				top.Retain(n)
+			} else {
+				top.Delete(-n)
+			}
+		case string:
+			s := o.(string)
+			top.Insert(s)
+		default:
+			return nil, ErrUnmarshalFailed
+		}
+	}
+	return top, nil
 }

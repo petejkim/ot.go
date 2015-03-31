@@ -1,6 +1,7 @@
 package ot_test
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -347,5 +348,67 @@ func TestTransform(t *testing.T) {
 
 	if actual, expected := bt, o; actual != expected {
 		t.Fatalf("expected %s, got %s", expected, actual)
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	top := &ot.TextOperation{}
+	top.Retain(2).Insert("H").Retain(5).Insert("one").Delete(1).Retain(1).Insert("man").Delete(6).Retain(1)
+
+	ops := top.Marshal()
+
+	if actual, expected := ops, []interface{}{2, "H", 5, "one", -1, 1, "man", -6, 1}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	j := `[1, ["H"], -1]`
+	var ops []interface{}
+	err := json.Unmarshal([]byte(j), &ops)
+	if err != nil {
+		t.Fatalf("test case error")
+	}
+
+	_, err = ot.Unmarshal(ops)
+	if err != ot.ErrUnmarshalFailed {
+		t.Fatalf("expected ErrUnmarshalFailed, got %v", err)
+	}
+
+	j = `[2, "Sh", 5, -1, "one", 1, -4, "man", -2, 1]`
+	err = json.Unmarshal([]byte(j), &ops)
+	if err != nil {
+		t.Fatalf("test case error")
+	}
+
+	top, err := ot.Unmarshal(ops)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if top.Ops == nil {
+		t.Fatalf("expected list of ops not to be nil, got nil")
+	}
+
+	if actual, expected := top.Ops, []*ot.Op{
+		&ot.Op{N: 2},
+		&ot.Op{S: "Sh"},
+		&ot.Op{N: 5},
+		&ot.Op{S: "one"},
+		&ot.Op{N: -1},
+		&ot.Op{N: 1},
+		&ot.Op{S: "man"},
+		&ot.Op{N: -6},
+		&ot.Op{N: 1},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+
+	if actual, expected := top.BaseLen, 16; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 17; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 }
