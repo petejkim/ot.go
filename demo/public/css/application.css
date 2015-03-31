@@ -1,0 +1,12 @@
+#code {
+  width: 500px;
+  height: 300px;
+}
+
+#join-form {
+  margin-bottom: 10px;
+}
+
+.CodeMirror {
+  border: 1px solid #888;
+}
