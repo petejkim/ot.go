@@ -1,6 +1,6 @@
 package main
 
-import "github.com/petejkim/ot.go/ot"
+import "github.com/nitrous-io/ot.go/ot"
 
 type Session struct {
 	EventChan chan ConnEvent
