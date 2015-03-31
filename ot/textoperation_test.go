@@ -7,6 +7,26 @@ import (
 	"github.com/petejkim/ot.go/ot"
 )
 
+func TestNewTextOperation(t *testing.T) {
+	top := ot.NewTextOperation()
+
+	if actual := reflect.TypeOf(top); actual != reflect.TypeOf(&ot.TextOperation{}) {
+		t.Fatalf("expected NewTextOperation to return a pointer to ot.TextOperation, got %v", actual)
+	}
+
+	if top.Ops == nil {
+		t.Errorf("expected Ops not to be nil, got nil")
+	}
+
+	if actual := top.BaseLen; actual != 0 {
+		t.Errorf("expected BaseLen to be 0, got %d", actual)
+	}
+
+	if actual := top.TargetLen; actual != 0 {
+		t.Errorf("expected TargetLen to be 0, got %d", actual)
+	}
+}
+
 func TestRetain(t *testing.T) {
 	top := &ot.TextOperation{}
 
@@ -260,5 +280,72 @@ func TestApply(t *testing.T) {
 
 	if actual, expected := s, "fdarxbiz"; actual != expected {
 		t.Errorf("expected %s, got %s", expected, actual)
+	}
+}
+
+func TestTransform(t *testing.T) {
+	a := &ot.TextOperation{}
+	a.Retain(1)
+
+	b := &ot.TextOperation{}
+	b.Retain(2)
+
+	_, _, err := ot.Transform(a, b)
+
+	if err != ot.ErrBaseLenMismatch {
+		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	}
+
+	// apply(apply(S, A), B') = apply(apply(S, B), A')
+
+	s := "She is a girl!!!"
+	o := "He was one beautiful man."
+
+	a = &ot.TextOperation{}
+	a.Retain(4).Delete(1).Insert("wa").Retain(4).Insert("beautiful ").Retain(4).Delete(3).Insert(".")
+
+	b = &ot.TextOperation{}
+	b.Delete(2).Insert("H").Retain(5).Delete(1).Insert("one").Retain(1).Delete(4).Insert("man").Delete(2).Retain(1)
+
+	a1, b1, err := ot.Transform(a, b)
+
+	if err != nil {
+		t.Fatalf("expected no error transforming, got %v", err)
+	}
+
+	if a1 == nil {
+		t.Fatalf("expected non-nil a', got nil")
+	}
+
+	if b1 == nil {
+		t.Fatalf("expected non-nil b', got nil")
+	}
+
+	as, err := a.Apply(s)
+	if err != nil {
+		t.Fatalf("expected no error applying A, got %v", err)
+	}
+
+	at, err := b1.Apply(as)
+	if err != nil {
+		t.Fatalf("expected no error applying B', got %v", err)
+	}
+
+	if actual, expected := at, o; actual != expected {
+		t.Fatalf("expected %s, got %s", expected, actual)
+	}
+
+	bs, err := b.Apply(s)
+	if err != nil {
+		t.Fatalf("expected no error applying B, got %v", err)
+	}
+
+	bt, err := a1.Apply(bs)
+	if err != nil {
+		t.Fatalf("expected no error applying A', got %v", err)
+	}
+
+	if actual, expected := bt, o; actual != expected {
+		t.Fatalf("expected %s, got %s", expected, actual)
 	}
 }
