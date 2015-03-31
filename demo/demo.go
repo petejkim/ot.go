@@ -15,6 +15,14 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+var session = NewSession(`package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, playground")
+}`)
+
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/ws", serveWs)
@@ -33,6 +41,7 @@ func main() {
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
+	var err error
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		if _, ok := err.(websocket.HandshakeError); !ok {
@@ -41,13 +50,5 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for {
-		_, p, err := conn.ReadMessage()
-		if err != nil {
-			return
-		}
-		if err = conn.WriteMessage(websocket.TextMessage, p); err != nil {
-			return
-		}
-	}
+	NewConnection(session, conn).Handle()
 }

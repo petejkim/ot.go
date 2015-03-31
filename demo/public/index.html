@@ -12,17 +12,12 @@
     <form id="join-form">
       <label for="username">Username</label>
       <input type="text" name="username">
-      <button id="join-btn">Join</button>
+      <button id="join-btn" disabled>Join</button>
       <span id="conn-status"></span>
+      <p>Users: <span id="users"></span></p>
     </form>
 
-    <textarea id="code" readonly>package main
-
-import "fmt"
-
-func main() {
-  fmt.Println("Hello, playground")
-}</textarea>
+    <textarea id="code" readonly></textarea>
     <script src="/js/jquery-2.1.3.js"></script>
     <script src="/js/codemirror-5.0.0.js"></script>
     <script src="/js/codemirror-mode-go-5.0.0.js"></script>
