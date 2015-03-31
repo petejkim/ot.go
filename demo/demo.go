@@ -15,7 +15,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-var session = NewSession(`package main
+var defaultSession = NewSession(`package main
 
 import "fmt"
 
@@ -32,6 +32,8 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	go defaultSession.HandleEvents()
 
 	fmt.Printf("Listening on port %s\n", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), r)
@@ -50,5 +52,5 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	NewConnection(session, conn).Handle()
+	NewConnection(defaultSession, conn).Handle()
 }

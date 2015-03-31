@@ -3,31 +3,72 @@ package main
 import "github.com/petejkim/ot.go/ot"
 
 type Session struct {
-	Clients []string
+	EventChan chan ConnEvent
 	*ot.Session
 }
 
 func NewSession(document string) *Session {
 	return &Session{
-		[]string{},
+		make(chan ConnEvent),
 		ot.NewSession(document),
 	}
 }
 
-func (s *Session) AddClient(id string) {
-	s.Clients = append(s.Clients, id)
-}
+func (s *Session) HandleEvents() {
+	for {
+		e, ok := <-s.EventChan
+		if !ok {
+			return
+		}
 
-func (s *Session) RemoveClient(id string) {
-	i := -1
-	for j, u := range s.Clients {
-		if u == id {
-			i = j
-			break
+		c := e.Conn
+		switch e.Name {
+		case "join":
+			data, ok := e.Data.(map[string]interface{})
+			if !ok {
+				break
+			}
+			username := data["username"]
+			if username == nil {
+				break
+			}
+
+			err := c.Send(&Event{"registered", c.ClientID})
+			if err != nil {
+				break
+			}
+			c.Broadcast(&Event{"join", map[string]interface{}{
+				"client_id": c.ClientID,
+				"username":  username,
+			}})
+		case "operation":
+			data, ok := e.Data.([]interface{})
+			if !ok {
+				break
+			}
+			revf, ok := data[0].(float64)
+			rev := int(revf)
+			if !ok {
+				break
+			}
+			ops, ok := data[1].([]interface{})
+			if !ok {
+				break
+			}
+			top, err := ot.Unmarshal(ops)
+			if err != nil {
+				break
+			}
+			top2, err := s.AddOperation(rev, top)
+			if err != nil {
+				break
+			}
+
+			err = c.Send(&Event{"ack", nil})
+			if err != nil {
+				break
+			}
+			c.Broadcast(&Event{"operation", []interface{}{c.ClientID, top2.Marshal()}})
 		}
 	}
-	if i == -1 {
-		return
-	}
-	s.Clients = append(s.Clients[:i], s.Clients[i+1:]...)
 }

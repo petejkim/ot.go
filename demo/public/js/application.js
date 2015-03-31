@@ -3,17 +3,12 @@
 
   window.App = {
     conn: null,
-    cm: null,
-    users: [],
-
-    updateUsers: function () {
-      $('#users').text(this.users.join(', '));
-    }
+    cm: null
   };
 
   App.cm = CodeMirror.fromTextArea(document.getElementById('code'), {
     lineNumbers: true,
-    readOnly: true,
+    readOnly: 'nocursor',
     mode: 'go'
   });
 
@@ -22,7 +17,7 @@
     $(this).attr({disabled: true});
     var $username = $('#join-form input[name=username]');
     $username.attr({disabled: true});
-    App.conn.send(JSON.stringify({event: 'join', data: { username: $username.val() }}));
+    App.conn.send('join', { username: $username.val() });
   });
 
   var url = [location.protocol.replace('http', 'ws'), '//', location.host, '/ws'].join('');
@@ -33,34 +28,26 @@
     $('#join-btn').attr({ disabled: false});
   });
 
-  conn.on('close', function () {
+  conn.on('close', function (evt) {
     $('#conn-status').text('Disconnected');
   });
 
-  conn.on('doc', function (data) {
+  conn.on('doc', function(data) {
     App.cm.setValue(data.document);
-    if (data.clients) {
-      App.users = App.users.concat(data.clients);
-      App.updateUsers();
-    }
+    var serverAdapter = new ot.SocketConnectionAdapter(conn);
+    var editorAdapter = new ot.CodeMirrorAdapter(App.cm);
+    App.client = new ot.EditorClient(data.revision, data.clients, serverAdapter, editorAdapter);
   });
 
-  conn.on('join', function (data) {
-    var clientId = data.client_id;
-    if (clientId) {
-      App.users.push(clientId);
-      App.updateUsers();
-    }
+  conn.on('registered', function(clientId) {
+    App.cm.setOption('readOnly', false);
   });
 
-  conn.on('quit', function (data) {
-    var clientId = data.client_id;
-    if (clientId) {
-      var i = App.users.indexOf(clientId);
-      if (i !== -1) {
-        App.users.splice(i, 1);
-      }
-      App.updateUsers();
-    }
+  conn.on('join', function(data) {
+    console.log(data);
+  });
+
+  conn.on('quit', function(data) {
+    console.log(data);
   });
 }());

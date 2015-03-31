@@ -2,19 +2,19 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"sync"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 )
 
-var nextClientID = 0
-var connections = map[*Connection]struct{}{}
-var lock = &sync.Mutex{}
+var (
+	nextClientID = 0
+	connections  = map[*Connection]struct{}{}
+)
 
-type Message struct {
-	Event string                 `json:"event"`
-	Data  map[string]interface{} `json:"data"`
+type Event struct {
+	Name string      `json:"event"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 type Connection struct {
@@ -23,89 +23,69 @@ type Connection struct {
 	Ws       *websocket.Conn
 }
 
+type ConnEvent struct {
+	Conn *Connection
+	*Event
+}
+
 func NewConnection(session *Session, ws *websocket.Conn) *Connection {
 	return &Connection{Session: session, Ws: ws}
 }
 
 func (c *Connection) Handle() error {
-	err := c.Send(&Message{"doc", map[string]interface{}{
-		"document": session.Document,
-		"revision": len(session.Operations),
-		"clients":  session.Clients,
+	err := c.Send(&Event{"doc", map[string]interface{}{
+		"document": c.Session.Document,
+		"revision": len(c.Session.Operations),
+		"clients":  c.Session.Clients,
 	}})
 	if err != nil {
 		return err
 	}
 
 	RegisterConnection(c)
+	c.ClientID = strconv.Itoa(nextClientID)
+	c.Session.AddClient(c.ClientID)
+	nextClientID++
 
 	for {
-		m, err := c.Read()
+		e, err := c.ReadEvent()
 		if err != nil {
 			break
 		}
 
-		switch m.Event {
-		case "join":
-			if c.ClientID != "" {
-				break
-			}
-			username := m.Data["username"]
-			if username == nil {
-				break
-			}
-			c.ClientID = fmt.Sprintf("%d:%s", nextClientID, username)
-			nextClientID++
-			session.AddClient(c.ClientID)
-
-			err = c.Send(&Message{"client_id", map[string]interface{}{
-				"client_id": c.ClientID,
-			}})
-			if err != nil {
-				break
-			}
-			Broadcast(&Message{"join", map[string]interface{}{
-				"client_id": c.ClientID,
-			}})
-		}
+		c.Session.EventChan <- ConnEvent{c, e}
 	}
 
 	UnregisterConnection(c)
 	if c.ClientID != "" {
-		session.RemoveClient(c.ClientID)
+		c.Session.RemoveClient(c.ClientID)
 	}
-	Broadcast(&Message{"quit", map[string]interface{}{
-		"client_id": c.ClientID,
-	}})
+	c.Broadcast(&Event{"quit", c.ClientID})
 
 	return nil
 }
 
 func RegisterConnection(c *Connection) {
-	lock.Lock()
 	connections[c] = struct{}{}
-	lock.Unlock()
 }
 
 func UnregisterConnection(c *Connection) {
-	lock.Lock()
 	delete(connections, c)
-	lock.Unlock()
 }
 
-func (c *Connection) Read() (*Message, error) {
+func (c *Connection) ReadEvent() (*Event, error) {
 	_, msg, err := c.Ws.ReadMessage()
 	if err != nil {
 		return nil, err
 	}
-	m := &Message{}
+	m := &Event{}
 	if err = json.Unmarshal(msg, &m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (c *Connection) Send(msg *Message) error {
+func (c *Connection) Send(msg *Event) error {
 	j, err := json.Marshal(msg)
 	if err != nil {
 		return err
@@ -116,8 +96,10 @@ func (c *Connection) Send(msg *Message) error {
 	return nil
 }
 
-func Broadcast(msg *Message) {
-	for c := range connections {
-		c.Send(msg)
+func (c *Connection) Broadcast(msg *Event) {
+	for conn := range connections {
+		if conn != c {
+			conn.Send(msg)
+		}
 	}
 }
