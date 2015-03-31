@@ -13,8 +13,8 @@ var (
 )
 
 type Event struct {
-	Name string      `json:"event"`
-	Data interface{} `json:"data,omitempty"`
+	Name string      `json:"e"`
+	Data interface{} `json:"d,omitempty"`
 }
 
 type Connection struct {

@@ -41,7 +41,7 @@ func (s *Session) HandleEvents() {
 				"client_id": c.ClientID,
 				"username":  username,
 			}})
-		case "operation":
+		case "op":
 			data, ok := e.Data.([]interface{})
 			if !ok {
 				break
@@ -64,11 +64,11 @@ func (s *Session) HandleEvents() {
 				break
 			}
 
-			err = c.Send(&Event{"ack", nil})
+			err = c.Send(&Event{"ok", nil})
 			if err != nil {
 				break
 			}
-			c.Broadcast(&Event{"operation", []interface{}{c.ClientID, top2.Marshal()}})
+			c.Broadcast(&Event{"op", []interface{}{c.ClientID, top2.Marshal()}})
 		}
 	}
 }

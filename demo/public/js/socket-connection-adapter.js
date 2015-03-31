@@ -15,11 +15,11 @@
       self.trigger('set_name', clientId, name);
     });
 
-    conn.on('ack', function () {
+    conn.on('ok', function () {
       self.trigger('ack');
     });
 
-    conn.on('operation', function (data) {
+    conn.on('op', function (data) {
       var clientId = data[0],
           operation = data[1],
           selection = data[2];
@@ -27,7 +27,7 @@
       self.trigger('selection', clientId, selection);
     });
 
-    conn.on('selection', function (data) {
+    conn.on('sel', function (data) {
       var clientId = data[0],
           selection = data[1];
       self.trigger('selection', clientId, selection);
@@ -39,11 +39,11 @@
   }
 
   SocketConnectionAdapter.prototype.sendOperation = function (revision, operation, selection) {
-    this.conn.send('operation', [revision, operation, selection]);
+    this.conn.send('op', [revision, operation, selection]);
   };
 
   SocketConnectionAdapter.prototype.sendSelection = function (selection) {
-    this.conn.send('selection', selection);
+    this.conn.send('sel', selection);
   };
 
   SocketConnectionAdapter.prototype.registerCallbacks = function (cb) {

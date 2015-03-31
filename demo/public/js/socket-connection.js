@@ -19,8 +19,8 @@
     ws.onmessage = function (evt) {
       var m = JSON.parse(evt.data);
 
-      if (m && m.event) {
-        self.emit(m.event, m.data, evt);
+      if (m && m.e) {
+        self.emit(m.e, m.d, evt);
       }
     };
   }
@@ -28,7 +28,7 @@
   SocketConnection.prototype = new EventEmitter;
 
   SocketConnection.prototype.send = function(eventName, data) {
-    this.ws.send(JSON.stringify({event: eventName, data: data}));
+    this.ws.send(JSON.stringify({e: eventName, d: data}));
   };
 
   window.SocketConnection = SocketConnection;
