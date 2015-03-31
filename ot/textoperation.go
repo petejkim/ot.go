@@ -1,13 +1,18 @@
 package ot
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrBaseLenMismatch = errors.New("ot: base length mismatch")
+)
 
 type Op struct {
 	N int
 	S string
 }
-
-var NoOp = Op{}
 
 func (o *Op) String() string {
 	return fmt.Sprintf("&%+v", *o)
@@ -89,6 +94,32 @@ func (t *TextOperation) LastOp() *Op {
 		return nil
 	}
 	return t.Ops[len(t.Ops)-1]
+}
+
+func (t *TextOperation) Apply(s string) (string, error) {
+	if len(s) != t.BaseLen {
+		return "", ErrBaseLenMismatch
+	}
+
+	newStr := ""
+	// start cursor at index 0 of original string
+	i := 0
+
+	for _, op := range t.Ops {
+		if IsRetain(op) {
+			// copy retained chars and advance cursor
+			newStr += s[i : i+op.N]
+			i += op.N
+		} else if IsInsert(op) {
+			// copy inserted chars, but do not advance cursor
+			newStr += op.S
+		} else if IsDelete(op) {
+			// skip deleted chars by advancing cursor
+			i -= op.N // N is negative
+		}
+	}
+
+	return newStr, nil
 }
 
 func IsRetain(op *Op) bool {

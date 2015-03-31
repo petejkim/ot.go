@@ -202,3 +202,63 @@ func TestMultipleOps(t *testing.T) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 }
+
+func TestApply(t *testing.T) {
+	top := &ot.TextOperation{}
+	top.Retain(3)
+
+	_, err := top.Apply("fo")
+
+	if err != ot.ErrBaseLenMismatch {
+		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	}
+
+	_, err = top.Apply("food")
+
+	if err != ot.ErrBaseLenMismatch {
+		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	}
+
+	s, err := top.Apply("foo")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if actual, expected := s, "foo"; actual != expected {
+		t.Errorf("expected %s, got %s", expected, actual)
+	}
+
+	top = &ot.TextOperation{}
+	s, err = top.Insert("bar").Apply("")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if actual, expected := s, "bar"; actual != expected {
+		t.Errorf("expected %s, got %s", expected, actual)
+	}
+
+	top = &ot.TextOperation{}
+	s, err = top.Delete(3).Apply("baz")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if actual := s; actual != "" {
+		t.Errorf("expected empty string, got %s", actual)
+	}
+
+	top = &ot.TextOperation{}
+	s, err = top.Retain(1).Insert("dar").Delete(1).Retain(1).Insert("biz").Apply("fox")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if actual, expected := s, "fdarxbiz"; actual != expected {
+		t.Errorf("expected %s, got %s", expected, actual)
+	}
+}

@@ -1,11 +1,7 @@
 package ot
 
-type Operation struct {
-}
-
 type Session struct {
-	Document   string
-	Operations []*Operation
+	Document string
 }
 
 func NewSession(document string) *Session {
