@@ -1,4 +1,4 @@
-package ot
+package selection
 
 type Range struct {
 	Anchor int `json:"anchor"`

@@ -1,18 +1,19 @@
-package ot_test
+package session_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/petejkim/ot.go/ot"
+	"github.com/nitrous-io/ot.go/ot/operation"
+	"github.com/nitrous-io/ot.go/ot/session"
 )
 
-func TestNewSession(t *testing.T) {
+func TestNew(t *testing.T) {
 	doc := "Lorem Ipsum Dolor Sit Amet"
-	s := ot.NewSession(doc)
+	s := session.New(doc)
 
-	if actual := reflect.TypeOf(s); actual != reflect.TypeOf(&ot.Session{}) {
-		t.Fatalf("expected NewSession to return a pointer to ot.Session, got %v", actual)
+	if actual := reflect.TypeOf(s); actual != reflect.TypeOf(&session.Session{}) {
+		t.Fatalf("expected NewSession to return a pointer to session.Session, got %v", actual)
 	}
 
 	if actual := s.Document; actual != doc {
@@ -29,7 +30,7 @@ func TestNewSession(t *testing.T) {
 }
 
 func TestAddClient(t *testing.T) {
-	s := ot.NewSession("")
+	s := session.New("")
 	s.AddClient("foo")
 
 	cl := s.Clients["foo"]
@@ -52,7 +53,7 @@ func TestAddClient(t *testing.T) {
 }
 
 func TestRemoveClient(t *testing.T) {
-	s := ot.NewSession("")
+	s := session.New("")
 	s.AddClient("foo")
 	s.AddClient("bar")
 	s.AddClient("baz")
@@ -72,19 +73,19 @@ func TestRemoveClient(t *testing.T) {
 }
 
 func TestAddOperation(t *testing.T) {
-	s := ot.NewSession("I love you.")
+	s := session.New("I love you.")
 
 	// I love you. -> She love you.
-	op1 := ot.NewTextOperation().Delete(1).Insert("She").Retain(10)
+	op1 := operation.New().Delete(1).Insert("She").Retain(10)
 	// She love you. -> She loves you.
-	op2 := ot.NewTextOperation().Retain(8).Insert("s").Retain(5)
+	op2 := operation.New().Retain(8).Insert("s").Retain(5)
 	// She loves you. -> She loves you!!!
-	op3 := ot.NewTextOperation().Retain(13).Insert("!!!").Delete(1)
+	op3 := operation.New().Retain(13).Insert("!!!").Delete(1)
 
 	// invalid revision (given rev(1) > current rev(0))
 	_, err := s.AddOperation(1, op1)
 
-	if err != ot.ErrInvalidRevision {
+	if err != session.ErrInvalidRevision {
 		t.Errorf("expected ErrInvalidRevision, got %v", err)
 	}
 
@@ -122,7 +123,7 @@ func TestAddOperation(t *testing.T) {
 	prevDoc := s.Document
 
 	// simulate client that is still at revision 0
-	op4 := ot.NewTextOperation().Retain(2).Insert("really ").Retain(9)
+	op4 := operation.New().Retain(2).Insert("really ").Retain(9)
 
 	retOp, err = s.AddOperation(0, op4)
 
@@ -131,7 +132,7 @@ func TestAddOperation(t *testing.T) {
 	}
 
 	// returned op should be transformed against concurrent operations
-	if expected := ot.NewTextOperation().Retain(4).Insert("really ").Retain(12); !reflect.DeepEqual(retOp, expected) {
+	if expected := operation.New().Retain(4).Insert("really ").Retain(12); !reflect.DeepEqual(retOp, expected) {
 		t.Errorf("expected returned operation to equal %v, got %v", expected, retOp)
 	}
 
@@ -140,7 +141,7 @@ func TestAddOperation(t *testing.T) {
 	s.Document = prevDoc
 
 	// simulate client that is at revision 1
-	op5 := ot.NewTextOperation().Retain(4).Insert("really ").Retain(9)
+	op5 := operation.New().Retain(4).Insert("really ").Retain(9)
 	retOp, err = s.AddOperation(1, op5)
 
 	if err != nil {
@@ -148,7 +149,7 @@ func TestAddOperation(t *testing.T) {
 	}
 
 	// returned op should be transformed against concurrent operations
-	if expected := ot.NewTextOperation().Retain(4).Insert("really ").Retain(12); !reflect.DeepEqual(retOp, expected) {
+	if expected := operation.New().Retain(4).Insert("really ").Retain(12); !reflect.DeepEqual(retOp, expected) {
 		t.Errorf("expected returned operation to equal %v, got %v", expected, retOp)
 	}
 }

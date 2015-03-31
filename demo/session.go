@@ -1,16 +1,19 @@
 package main
 
-import "github.com/nitrous-io/ot.go/ot"
+import (
+	"github.com/nitrous-io/ot.go/ot/operation"
+	"github.com/nitrous-io/ot.go/ot/session"
+)
 
 type Session struct {
 	EventChan chan ConnEvent
-	*ot.Session
+	*session.Session
 }
 
 func NewSession(document string) *Session {
 	return &Session{
 		make(chan ConnEvent),
-		ot.NewSession(document),
+		session.New(document),
 	}
 }
 
@@ -42,20 +45,23 @@ func (s *Session) HandleEvents() {
 				"username":  username,
 			}})
 		case "op":
+			// data: [revision, ops, selection]
 			data, ok := e.Data.([]interface{})
 			if !ok {
 				break
 			}
+			// revision
 			revf, ok := data[0].(float64)
 			rev := int(revf)
 			if !ok {
 				break
 			}
+			// ops
 			ops, ok := data[1].([]interface{})
 			if !ok {
 				break
 			}
-			top, err := ot.Unmarshal(ops)
+			top, err := operation.Unmarshal(ops)
 			if err != nil {
 				break
 			}

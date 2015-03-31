@@ -1,18 +1,18 @@
-package ot_test
+package operation_test
 
 import (
 	"encoding/json"
 	"reflect"
 	"testing"
 
-	"github.com/petejkim/ot.go/ot"
+	"github.com/nitrous-io/ot.go/ot/operation"
 )
 
-func TestNewTextOperation(t *testing.T) {
-	top := ot.NewTextOperation()
+func TestNew(t *testing.T) {
+	top := operation.New()
 
-	if actual := reflect.TypeOf(top); actual != reflect.TypeOf(&ot.TextOperation{}) {
-		t.Fatalf("expected NewTextOperation to return a pointer to ot.TextOperation, got %v", actual)
+	if actual := reflect.TypeOf(top); actual != reflect.TypeOf(&operation.Operation{}) {
+		t.Fatalf("expected New to return a pointer to operation.Operation, got %v", actual)
 	}
 
 	if top.Ops == nil {
@@ -29,7 +29,7 @@ func TestNewTextOperation(t *testing.T) {
 }
 
 func TestRetain(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 
 	top.Retain(0)
 
@@ -55,8 +55,8 @@ func TestRetain(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: 2},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: 2},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
@@ -71,15 +71,15 @@ func TestRetain(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: 6},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: 6},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 }
 
 func TestDelete(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 
 	top.Delete(0)
 
@@ -105,8 +105,8 @@ func TestDelete(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: -2},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: -2},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
@@ -121,15 +121,15 @@ func TestDelete(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: -5},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: -5},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 }
 
 func TestInsert(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 
 	top.Insert("")
 
@@ -155,8 +155,8 @@ func TestInsert(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{S: "foo"},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{S: "foo"},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
@@ -171,15 +171,15 @@ func TestInsert(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{S: "foobarbaz"},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{S: "foobarbaz"},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 }
 
 func TestMultipleOps(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 
 	top.Retain(1).Delete(2).Delete(1).Retain(2).Retain(3).Delete(1)
 
@@ -191,16 +191,16 @@ func TestMultipleOps(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: 1},
-		&ot.Op{N: -3},
-		&ot.Op{N: 5},
-		&ot.Op{N: -1},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: 1},
+		&operation.Op{N: -3},
+		&operation.Op{N: 5},
+		&operation.Op{N: -1},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 
-	top = &ot.TextOperation{}
+	top = &operation.Operation{}
 
 	top.Retain(1).Insert("foo").Delete(2).Insert("bar").Delete(1).Retain(2).Retain(3).Insert("baz").Delete(1).Delete(3)
 
@@ -212,32 +212,32 @@ func TestMultipleOps(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: 1},
-		&ot.Op{S: "foobar"},
-		&ot.Op{N: -3},
-		&ot.Op{N: 5},
-		&ot.Op{S: "baz"},
-		&ot.Op{N: -4},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: 1},
+		&operation.Op{S: "foobar"},
+		&operation.Op{N: -3},
+		&operation.Op{N: 5},
+		&operation.Op{S: "baz"},
+		&operation.Op{N: -4},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
 }
 
 func TestApply(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 	top.Retain(3)
 
 	_, err := top.Apply("fo")
 
-	if err != ot.ErrBaseLenMismatch {
-		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	if err != operation.ErrBaseLenMismatch {
+		t.Errorf("expected operation.ErrBaseLenMismatch, got %v", err)
 	}
 
 	_, err = top.Apply("food")
 
-	if err != ot.ErrBaseLenMismatch {
-		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	if err != operation.ErrBaseLenMismatch {
+		t.Errorf("expected operation.ErrBaseLenMismatch, got %v", err)
 	}
 
 	s, err := top.Apply("foo")
@@ -250,7 +250,7 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
-	top = &ot.TextOperation{}
+	top = &operation.Operation{}
 	s, err = top.Insert("bar").Apply("")
 
 	if err != nil {
@@ -261,7 +261,7 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
-	top = &ot.TextOperation{}
+	top = &operation.Operation{}
 	s, err = top.Delete(3).Apply("baz")
 
 	if err != nil {
@@ -272,7 +272,7 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected empty string, got %s", actual)
 	}
 
-	top = &ot.TextOperation{}
+	top = &operation.Operation{}
 	s, err = top.Retain(1).Insert("dar").Delete(1).Retain(1).Insert("biz").Apply("fox")
 
 	if err != nil {
@@ -285,16 +285,16 @@ func TestApply(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
-	a := &ot.TextOperation{}
+	a := &operation.Operation{}
 	a.Retain(1)
 
-	b := &ot.TextOperation{}
+	b := &operation.Operation{}
 	b.Retain(2)
 
-	_, _, err := ot.Transform(a, b)
+	_, _, err := operation.Transform(a, b)
 
-	if err != ot.ErrBaseLenMismatch {
-		t.Errorf("expected ot.ErrBaseLenMismatch, got %v", err)
+	if err != operation.ErrBaseLenMismatch {
+		t.Errorf("expected ErrBaseLenMismatch, got %v", err)
 	}
 
 	// apply(apply(S, A), B') = apply(apply(S, B), A')
@@ -302,13 +302,13 @@ func TestTransform(t *testing.T) {
 	s := "She is a girl!!!"
 	o := "He was one beautiful man."
 
-	a = &ot.TextOperation{}
+	a = &operation.Operation{}
 	a.Retain(4).Delete(1).Insert("wa").Retain(4).Insert("beautiful ").Retain(4).Delete(3).Insert(".")
 
-	b = &ot.TextOperation{}
+	b = &operation.Operation{}
 	b.Delete(2).Insert("H").Retain(5).Delete(1).Insert("one").Retain(1).Delete(4).Insert("man").Delete(2).Retain(1)
 
-	a1, b1, err := ot.Transform(a, b)
+	a1, b1, err := operation.Transform(a, b)
 
 	if err != nil {
 		t.Fatalf("expected no error transforming, got %v", err)
@@ -352,7 +352,7 @@ func TestTransform(t *testing.T) {
 }
 
 func TestMarshal(t *testing.T) {
-	top := &ot.TextOperation{}
+	top := &operation.Operation{}
 	top.Retain(2).Insert("H").Retain(5).Insert("one").Delete(1).Retain(1).Insert("man").Delete(6).Retain(1)
 
 	ops := top.Marshal()
@@ -370,8 +370,8 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatalf("test case error")
 	}
 
-	_, err = ot.Unmarshal(ops)
-	if err != ot.ErrUnmarshalFailed {
+	_, err = operation.Unmarshal(ops)
+	if err != operation.ErrUnmarshalFailed {
 		t.Fatalf("expected ErrUnmarshalFailed, got %v", err)
 	}
 
@@ -381,7 +381,7 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatalf("test case error")
 	}
 
-	top, err := ot.Unmarshal(ops)
+	top, err := operation.Unmarshal(ops)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -390,16 +390,16 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatalf("expected list of ops not to be nil, got nil")
 	}
 
-	if actual, expected := top.Ops, []*ot.Op{
-		&ot.Op{N: 2},
-		&ot.Op{S: "Sh"},
-		&ot.Op{N: 5},
-		&ot.Op{S: "one"},
-		&ot.Op{N: -1},
-		&ot.Op{N: 1},
-		&ot.Op{S: "man"},
-		&ot.Op{N: -6},
-		&ot.Op{N: 1},
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{N: 2},
+		&operation.Op{S: "Sh"},
+		&operation.Op{N: 5},
+		&operation.Op{S: "one"},
+		&operation.Op{N: -1},
+		&operation.Op{N: 1},
+		&operation.Op{S: "man"},
+		&operation.Op{N: -6},
+		&operation.Op{N: 1},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}

@@ -1,34 +1,39 @@
-package ot
+package session
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/nitrous-io/ot.go/ot/operation"
+	"github.com/nitrous-io/ot.go/ot/selection"
+)
 
 var (
-	ErrInvalidRevision = errors.New("ot: invalid revision")
+	ErrInvalidRevision = errors.New("ot/session: invalid revision")
 )
 
 type Session struct {
 	Document   string
-	Operations []*TextOperation
+	Operations []*operation.Operation
 	Clients    map[string]*Client
 }
 
-func NewSession(document string) *Session {
+func New(document string) *Session {
 	return &Session{
 		Document:   document,
-		Operations: []*TextOperation{},
+		Operations: []*operation.Operation{},
 		Clients:    map[string]*Client{},
 	}
 }
 
 func (s *Session) AddClient(id string) {
-	s.Clients[id] = &Client{Selection: Selection{[]Range{}}}
+	s.Clients[id] = &Client{Selection: selection.Selection{[]selection.Range{}}}
 }
 
 func (s *Session) RemoveClient(id string) {
 	delete(s.Clients, id)
 }
 
-func (s *Session) AddOperation(revision int, operation *TextOperation) (*TextOperation, error) {
+func (s *Session) AddOperation(revision int, op *operation.Operation) (*operation.Operation, error) {
 	if revision < 0 || len(s.Operations) < revision {
 		return nil, ErrInvalidRevision
 	}
@@ -37,21 +42,21 @@ func (s *Session) AddOperation(revision int, operation *TextOperation) (*TextOpe
 
 	// transform given operation against these operations
 	for _, otherOp := range otherOps {
-		op1, _, err := Transform(operation, otherOp)
+		op1, _, err := operation.Transform(op, otherOp)
 		if err != nil {
 			return nil, err
 		}
-		operation = op1
+		op = op1
 	}
 
 	// apply transformed op on the doc
-	doc, err := operation.Apply(s.Document)
+	doc, err := op.Apply(s.Document)
 	if err != nil {
 		return nil, err
 	}
 
 	s.Document = doc
-	s.Operations = append(s.Operations, operation)
+	s.Operations = append(s.Operations, op)
 
-	return operation, nil
+	return op, nil
 }
