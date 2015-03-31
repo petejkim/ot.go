@@ -31,7 +31,6 @@ func (t *TextOperation) Retain(n int) *TextOperation {
 		// last op is retain -> merge
 		last.N += n
 	} else {
-		// insert op
 		t.Ops = append(t.Ops, &Op{N: n})
 	}
 	return t
@@ -54,6 +53,37 @@ func (t *TextOperation) Delete(n int) *TextOperation {
 	return t
 }
 
+func (t *TextOperation) Insert(s string) *TextOperation {
+	if s == "" {
+		return t
+	}
+	t.TargetLen += len(s)
+
+	last := t.LastOp()
+	if last != nil && IsInsert(last) {
+		// last op is insert -> merge
+		last.S += s
+	} else if last != nil && IsDelete(last) {
+		// last op is delete -> put insert before the delete
+		var secondLast *Op
+		opsLen := len(t.Ops)
+		if opsLen >= 2 {
+			secondLast = t.Ops[opsLen-2]
+		}
+		if secondLast != nil && IsInsert(secondLast) {
+			// 2nd last op is insert -> merge
+			secondLast.S += s
+		} else {
+			t.Ops = append(t.Ops, last)
+			t.Ops[opsLen-1] = &Op{S: s}
+		}
+	} else {
+		t.Ops = append(t.Ops, &Op{S: s})
+	}
+
+	return t
+}
+
 func (t *TextOperation) LastOp() *Op {
 	if len(t.Ops) == 0 {
 		return nil
@@ -67,4 +97,8 @@ func IsRetain(op *Op) bool {
 
 func IsDelete(op *Op) bool {
 	return op.N < 0 && op.S == ""
+}
+
+func IsInsert(op *Op) bool {
+	return op.N == 0 && op.S != ""
 }

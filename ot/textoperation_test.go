@@ -107,6 +107,56 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestInsert(t *testing.T) {
+	top := &ot.TextOperation{}
+
+	top.Insert("")
+
+	if actual, expected := top.BaseLen, 0; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 0; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	if actual := len(top.Ops); actual != 0 {
+		t.Errorf("expected empty ops, got ops with length %d", actual)
+	}
+
+	top.Insert("foo")
+
+	if actual, expected := top.BaseLen, 0; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 3; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.Ops, []*ot.Op{
+		&ot.Op{S: "foo"},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+
+	top.Insert("bar").Insert("baz")
+
+	if actual, expected := top.BaseLen, 0; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 9; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.Ops, []*ot.Op{
+		&ot.Op{S: "foobarbaz"},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+}
+
 func TestMultipleOps(t *testing.T) {
 	top := &ot.TextOperation{}
 
@@ -125,6 +175,29 @@ func TestMultipleOps(t *testing.T) {
 		&ot.Op{N: -3},
 		&ot.Op{N: 5},
 		&ot.Op{N: -1},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+
+	top = &ot.TextOperation{}
+
+	top.Retain(1).Insert("foo").Delete(2).Insert("bar").Delete(1).Retain(2).Retain(3).Insert("baz").Delete(1).Delete(3)
+
+	if actual, expected := top.BaseLen, 13; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 15; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.Ops, []*ot.Op{
+		&ot.Op{N: 1},
+		&ot.Op{S: "foobar"},
+		&ot.Op{N: -3},
+		&ot.Op{N: 5},
+		&ot.Op{S: "baz"},
+		&ot.Op{N: -4},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
