@@ -37,6 +37,23 @@ func (t *TextOperation) Retain(n int) *TextOperation {
 	return t
 }
 
+func (t *TextOperation) Delete(n int) *TextOperation {
+	if n <= 0 {
+		return t
+	}
+	t.BaseLen += n
+
+	last := t.LastOp()
+	if last != nil && IsDelete(last) {
+		// last op is delete -> merge
+		last.N -= n
+	} else {
+		t.Ops = append(t.Ops, &Op{N: -n})
+	}
+
+	return t
+}
+
 func (t *TextOperation) LastOp() *Op {
 	if len(t.Ops) == 0 {
 		return nil
@@ -46,4 +63,8 @@ func (t *TextOperation) LastOp() *Op {
 
 func IsRetain(op *Op) bool {
 	return op.N > 0 && op.S == ""
+}
+
+func IsDelete(op *Op) bool {
+	return op.N < 0 && op.S == ""
 }
