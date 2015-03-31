@@ -9,13 +9,23 @@ var (
 type Session struct {
 	Document   string
 	Operations []*TextOperation
+	Clients    map[string]*Client
 }
 
 func NewSession(document string) *Session {
 	return &Session{
 		Document:   document,
 		Operations: []*TextOperation{},
+		Clients:    map[string]*Client{},
 	}
+}
+
+func (s *Session) AddClient(id string) {
+	s.Clients[id] = &Client{Selection: Selection{[]Range{}}}
+}
+
+func (s *Session) RemoveClient(id string) {
+	delete(s.Clients, id)
 }
 
 func (s *Session) AddOperation(revision int, operation *TextOperation) (*TextOperation, error) {

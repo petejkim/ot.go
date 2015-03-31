@@ -22,6 +22,53 @@ func TestNewSession(t *testing.T) {
 	if s.Operations == nil {
 		t.Errorf("expected operations not to be nil, got nil")
 	}
+
+	if s.Clients == nil {
+		t.Errorf("expected clients not to be nil, got nil")
+	}
+}
+
+func TestAddClient(t *testing.T) {
+	s := ot.NewSession("")
+	s.AddClient("foo")
+
+	cl := s.Clients["foo"]
+
+	if cl == nil {
+		t.Fatalf("expected client to have been added, but it was not")
+	}
+
+	if actual := cl.Name; actual != "" {
+		t.Errorf("expected name to be empty, but got %s", actual)
+	}
+
+	if actual := cl.Selection.Ranges; actual == nil {
+		t.Errorf("expected selection ranges not to be nil, got nil")
+	}
+
+	if actual := cl.Selection.Ranges; len(actual) != 0 {
+		t.Errorf("expected selection ranges to be empty, but got %+v", actual)
+	}
+}
+
+func TestRemoveClient(t *testing.T) {
+	s := ot.NewSession("")
+	s.AddClient("foo")
+	s.AddClient("bar")
+	s.AddClient("baz")
+	s.RemoveClient("bar")
+
+	if s.Clients["foo"] == nil {
+		t.Errorf("expected foo not to have been removed, but it was")
+	}
+
+	if s.Clients["bar"] != nil {
+		t.Errorf("expected bar to have been removed, but it was not")
+	}
+
+	if s.Clients["baz"] == nil {
+		t.Errorf("expected baz not to have been removed, but it was")
+	}
 }
 
 func TestAddOperation(t *testing.T) {
