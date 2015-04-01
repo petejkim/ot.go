@@ -2,14 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"strconv"
 
 	"github.com/gorilla/websocket"
-)
-
-var (
-	nextClientID = 0
-	connections  = map[*Connection]struct{}{}
 )
 
 type Event struct {
@@ -18,9 +12,9 @@ type Event struct {
 }
 
 type Connection struct {
-	ClientID string
-	Session  *Session
-	Ws       *websocket.Conn
+	ID      string
+	Session *Session
+	Ws      *websocket.Conn
 }
 
 type ConnEvent struct {
@@ -33,19 +27,18 @@ func NewConnection(session *Session, ws *websocket.Conn) *Connection {
 }
 
 func (c *Connection) Handle() error {
+	s := c.Session
+
 	err := c.Send(&Event{"doc", map[string]interface{}{
-		"document": c.Session.Document,
+		"document": s.Document,
 		"revision": len(c.Session.Operations),
-		"clients":  c.Session.Clients,
+		"clients":  s.Clients,
 	}})
 	if err != nil {
 		return err
 	}
 
-	RegisterConnection(c)
-	c.ClientID = strconv.Itoa(nextClientID)
-	c.Session.AddClient(c.ClientID)
-	nextClientID++
+	s.RegisterConnection(c)
 
 	for {
 		e, err := c.ReadEvent()
@@ -53,24 +46,13 @@ func (c *Connection) Handle() error {
 			break
 		}
 
-		c.Session.EventChan <- ConnEvent{c, e}
+		s.EventChan <- ConnEvent{c, e}
 	}
 
-	UnregisterConnection(c)
-	if c.ClientID != "" {
-		c.Session.RemoveClient(c.ClientID)
-	}
-	c.Broadcast(&Event{"quit", c.ClientID})
+	s.UnregisterConnection(c)
+	c.Broadcast(&Event{"quit", c.ID})
 
 	return nil
-}
-
-func RegisterConnection(c *Connection) {
-	connections[c] = struct{}{}
-}
-
-func UnregisterConnection(c *Connection) {
-	delete(connections, c)
 }
 
 func (c *Connection) ReadEvent() (*Event, error) {
@@ -97,7 +79,7 @@ func (c *Connection) Send(msg *Event) error {
 }
 
 func (c *Connection) Broadcast(msg *Event) {
-	for conn := range connections {
+	for conn := range c.Session.Connections {
 		if conn != c {
 			conn.Send(msg)
 		}

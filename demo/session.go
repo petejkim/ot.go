@@ -1,23 +1,53 @@
 package main
 
 import (
+	"strconv"
+	"sync"
+
 	"github.com/nitrous-io/ot.go/ot/operation"
 	"github.com/nitrous-io/ot.go/ot/session"
 )
 
 type Session struct {
+	nextConnID  int
+	Connections map[*Connection]struct{}
+
 	EventChan chan ConnEvent
+
+	lock sync.Mutex
+
 	*session.Session
 }
 
 func NewSession(document string) *Session {
 	return &Session{
-		make(chan ConnEvent),
-		session.New(document),
+		Connections: map[*Connection]struct{}{},
+		EventChan:   make(chan ConnEvent),
+		Session:     session.New(document),
 	}
 }
 
+func (s *Session) RegisterConnection(c *Connection) {
+	s.lock.Lock()
+	id := strconv.Itoa(s.nextConnID)
+	c.ID = id
+	s.nextConnID++
+	s.Connections[c] = struct{}{}
+	s.AddClient(c.ID)
+	s.lock.Unlock()
+}
+
+func (s *Session) UnregisterConnection(c *Connection) {
+	s.lock.Lock()
+	delete(s.Connections, c)
+	if c.ID != "" {
+		s.RemoveClient(c.ID)
+	}
+	s.lock.Unlock()
+}
+
 func (s *Session) HandleEvents() {
+	// this method should run in a single go routine
 	for {
 		e, ok := <-s.EventChan
 		if !ok {
@@ -36,12 +66,12 @@ func (s *Session) HandleEvents() {
 				break
 			}
 
-			err := c.Send(&Event{"registered", c.ClientID})
+			err := c.Send(&Event{"registered", c.ID})
 			if err != nil {
 				break
 			}
 			c.Broadcast(&Event{"join", map[string]interface{}{
-				"client_id": c.ClientID,
+				"client_id": c.ID,
 				"username":  username,
 			}})
 		case "op":
@@ -74,7 +104,7 @@ func (s *Session) HandleEvents() {
 			if err != nil {
 				break
 			}
-			c.Broadcast(&Event{"op", []interface{}{c.ClientID, top2.Marshal()}})
+			c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal()}})
 		}
 	}
 }
