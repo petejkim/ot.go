@@ -3,6 +3,7 @@ package operation
 import (
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
 var (
@@ -70,7 +71,7 @@ func (t *Operation) Insert(s string) *Operation {
 	if s == "" {
 		return t
 	}
-	t.TargetLen += len(s)
+	t.TargetLen += utf8.RuneCountInString(s)
 
 	last := t.LastOp()
 	if last != nil && IsInsert(last) {
@@ -105,7 +106,9 @@ func (t *Operation) LastOp() *Op {
 }
 
 func (t *Operation) Apply(s string) (string, error) {
-	if len(s) != t.BaseLen {
+	runes := []rune(s)
+
+	if len(runes) != t.BaseLen {
 		return "", ErrBaseLenMismatch
 	}
 
@@ -116,7 +119,7 @@ func (t *Operation) Apply(s string) (string, error) {
 	for _, op := range t.Ops {
 		if IsRetain(op) {
 			// copy retained chars and advance cursor
-			newStr += s[i : i+op.N]
+			newStr += string(runes[i : i+op.N])
 			i += op.N
 		} else if IsInsert(op) {
 			// copy inserted chars, but do not advance cursor
@@ -186,11 +189,11 @@ func Transform(a, b *Operation) (*Operation, *Operation, error) {
 		// if both are insert, process op A first
 		if opA != nil && IsInsert(opA) {
 			a1.Insert(opA.S)
-			b1.Retain(len(opA.S))
+			b1.Retain(utf8.RuneCountInString(opA.S))
 			nextOpA()
 			continue
 		} else if opB != nil && IsInsert(opB) {
-			a1.Retain(len(opB.S))
+			a1.Retain(utf8.RuneCountInString(opB.S))
 			b1.Insert(opB.S)
 			nextOpB()
 			continue
