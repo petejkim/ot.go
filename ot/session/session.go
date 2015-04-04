@@ -46,6 +46,12 @@ func (s *Session) AddOperation(revision int, op *operation.Operation) (*operatio
 		if err != nil {
 			return nil, err
 		}
+		if op.Meta != nil {
+			if m, ok := op.Meta.(*selection.Selection); ok {
+				op1.Meta = m.Transform(otherOp)
+			}
+		}
+
 		op = op1
 	}
 

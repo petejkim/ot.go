@@ -25,6 +25,7 @@ type Operation struct {
 	Ops       []*Op
 	BaseLen   int
 	TargetLen int
+	Meta      interface{}
 }
 
 func New() *Operation {

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/nitrous-io/ot.go/ot/operation"
+	"github.com/nitrous-io/ot.go/ot/selection"
 	"github.com/nitrous-io/ot.go/ot/session"
 )
 
@@ -75,9 +76,12 @@ func (s *Session) HandleEvents() {
 				"username":  username,
 			}})
 		case "op":
-			// data: [revision, ops, selection]
+			// data: [revision, ops, selection?]
 			data, ok := e.Data.([]interface{})
 			if !ok {
+				break
+			}
+			if len(data) < 2 {
 				break
 			}
 			// revision
@@ -95,6 +99,19 @@ func (s *Session) HandleEvents() {
 			if err != nil {
 				break
 			}
+			// selection (optional)
+			if len(data) >= 3 {
+				selm, ok := data[2].(map[string]interface{})
+				if !ok {
+					break
+				}
+				sel, err := selection.Unmarshal(selm)
+				if err != nil {
+					break
+				}
+				top.Meta = sel
+			}
+
 			top2, err := s.AddOperation(rev, top)
 			if err != nil {
 				break
@@ -104,7 +121,22 @@ func (s *Session) HandleEvents() {
 			if err != nil {
 				break
 			}
-			c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal()}})
+
+			if sel, ok := top2.Meta.(*selection.Selection); ok {
+				c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal(), sel.Marshal()}})
+			} else {
+				c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal()}})
+			}
+		case "sel":
+			data, ok := e.Data.(map[string]interface{})
+			if !ok {
+				break
+			}
+			sel, err := selection.Unmarshal(data)
+			if err != nil {
+				break
+			}
+			c.Broadcast(&Event{"sel", []interface{}{c.ID, sel.Marshal()}})
 		}
 	}
 }
