@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/nitrous-io/ot.go/ot"
 )
 
 var upgrader = websocket.Upgrader{
@@ -24,6 +25,8 @@ func main() {
 }`)
 
 func main() {
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
+
 	r := mux.NewRouter()
 	r.HandleFunc("/ws", serveWs)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))

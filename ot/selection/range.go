@@ -1,10 +1,6 @@
 package selection
 
-import (
-	"unicode/utf8"
-
-	"github.com/nitrous-io/ot.go/ot/operation"
-)
+import "github.com/nitrous-io/ot.go/ot/operation"
 
 type Range struct {
 	Anchor int `json:"anchor"`
@@ -29,8 +25,8 @@ func transformIndex(i int, op *operation.Operation) int {
 			j += op.N
 		} else if operation.IsInsert(op) {
 			// insertion increments index. also advance cursor
-			i += utf8.RuneCountInString(op.S)
-			j += utf8.RuneCountInString(op.S)
+			i += len(op.S)
+			j += len(op.S)
 		} else if operation.IsDelete(op) {
 			// deletion decrements index, but only up to current cursor
 			i = max(j, i+op.N) // N is negative

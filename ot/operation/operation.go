@@ -3,7 +3,9 @@ package operation
 import (
 	"errors"
 	"fmt"
-	"unicode/utf8"
+	"unicode/utf16"
+
+	"github.com/nitrous-io/ot.go/ot"
 )
 
 var (
@@ -15,7 +17,7 @@ var (
 
 type Op struct {
 	N int
-	S string
+	S []rune
 }
 
 func (o *Op) String() string {
@@ -71,12 +73,17 @@ func (t *Operation) Insert(s string) *Operation {
 	if s == "" {
 		return t
 	}
-	t.TargetLen += utf8.RuneCountInString(s)
+
+	r := []rune(s)
+	if ot.TextEncoding == ot.TextEncodingTypeUTF16 {
+		r = uint16sToRunes(utf16.Encode(r))
+	}
+	t.TargetLen += len(r)
 
 	last := t.LastOp()
 	if last != nil && IsInsert(last) {
 		// last op is insert -> merge
-		last.S += s
+		last.S = append(last.S, r...)
 	} else if last != nil && IsDelete(last) {
 		// last op is delete -> put insert before the delete
 		var secondLast *Op
@@ -86,13 +93,13 @@ func (t *Operation) Insert(s string) *Operation {
 		}
 		if secondLast != nil && IsInsert(secondLast) {
 			// 2nd last op is insert -> merge
-			secondLast.S += s
+			secondLast.S = append(secondLast.S, r...)
 		} else {
 			t.Ops = append(t.Ops, last)
-			t.Ops[opsLen-1] = &Op{S: s}
+			t.Ops[opsLen-1] = &Op{S: r}
 		}
 	} else {
-		t.Ops = append(t.Ops, &Op{S: s})
+		t.Ops = append(t.Ops, &Op{S: r})
 	}
 
 	return t
@@ -106,9 +113,12 @@ func (t *Operation) LastOp() *Op {
 }
 
 func (t *Operation) Apply(s string) (string, error) {
-	runes := []rune(s)
+	r := []rune(s)
+	if ot.TextEncoding == ot.TextEncodingTypeUTF16 {
+		r = uint16sToRunes(utf16.Encode(r))
+	}
 
-	if len(runes) != t.BaseLen {
+	if len(r) != t.BaseLen {
 		return "", ErrBaseLenMismatch
 	}
 
@@ -119,11 +129,20 @@ func (t *Operation) Apply(s string) (string, error) {
 	for _, op := range t.Ops {
 		if IsRetain(op) {
 			// copy retained chars and advance cursor
-			newStr += string(runes[i : i+op.N])
+			ss := r[i : i+op.N]
+			if ot.TextEncoding == ot.TextEncodingTypeUTF8 {
+				newStr += string(ss)
+			} else {
+				newStr += string(utf16.Decode(runesToUint16s(ss)))
+			}
 			i += op.N
 		} else if IsInsert(op) {
 			// copy inserted chars, but do not advance cursor
-			newStr += op.S
+			if ot.TextEncoding == ot.TextEncodingTypeUTF8 {
+				newStr += string(op.S)
+			} else {
+				newStr += string(utf16.Decode(runesToUint16s(op.S)))
+			}
 		} else if IsDelete(op) {
 			// skip deleted chars by advancing cursor
 			i -= op.N // N is negative
@@ -144,10 +163,14 @@ func (t *Operation) Marshal() []interface{} {
 	ops := make([]interface{}, len(t.Ops))
 
 	for i, o := range t.Ops {
-		if o.S == "" {
-			ops[i] = o.N
+		if IsInsert(o) {
+			if ot.TextEncoding == ot.TextEncodingTypeUTF8 {
+				ops[i] = string(o.S)
+			} else {
+				ops[i] = string(utf16.Decode(runesToUint16s(o.S)))
+			}
 		} else {
-			ops[i] = o.S
+			ops[i] = o.N
 		}
 	}
 
@@ -155,15 +178,15 @@ func (t *Operation) Marshal() []interface{} {
 }
 
 func IsRetain(op *Op) bool {
-	return op.N > 0 && op.S == ""
+	return op.N > 0
 }
 
 func IsDelete(op *Op) bool {
-	return op.N < 0 && op.S == ""
+	return op.N < 0
 }
 
 func IsInsert(op *Op) bool {
-	return op.N == 0 && op.S != ""
+	return op.N == 0 && op.S != nil && len(op.S) != 0
 }
 
 func Transform(a, b *Operation) (*Operation, *Operation, error) {
@@ -188,13 +211,21 @@ func Transform(a, b *Operation) (*Operation, *Operation, error) {
 		// either op is insert e.g. Op A=insert => A'<- insert, B'<- retain
 		// if both are insert, process op A first
 		if opA != nil && IsInsert(opA) {
-			a1.Insert(opA.S)
-			b1.Retain(utf8.RuneCountInString(opA.S))
+			if ot.TextEncoding == ot.TextEncodingTypeUTF8 {
+				a1.Insert(string(opA.S))
+			} else {
+				a1.Insert(string(utf16.Decode(runesToUint16s(opA.S))))
+			}
+			b1.Retain(len(opA.S))
 			nextOpA()
 			continue
 		} else if opB != nil && IsInsert(opB) {
-			a1.Retain(utf8.RuneCountInString(opB.S))
-			b1.Insert(opB.S)
+			a1.Retain(len(opB.S))
+			if ot.TextEncoding == ot.TextEncodingTypeUTF8 {
+				b1.Insert(string(opB.S))
+			} else {
+				b1.Insert(string(utf16.Decode(runesToUint16s(opB.S))))
+			}
 			nextOpB()
 			continue
 		}
@@ -313,4 +344,20 @@ func Unmarshal(ops []interface{}) (*Operation, error) {
 		}
 	}
 	return top, nil
+}
+
+func uint16sToRunes(s []uint16) []rune {
+	r := make([]rune, len(s))
+	for i, v := range s {
+		r[i] = rune(v)
+	}
+	return r
+}
+
+func runesToUint16s(r []rune) []uint16 {
+	s := make([]uint16, len(r))
+	for i, v := range r {
+		s[i] = uint16(v)
+	}
+	return s
 }

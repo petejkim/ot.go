@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/nitrous-io/ot.go/ot"
 	"github.com/nitrous-io/ot.go/ot/operation"
 )
 
@@ -129,6 +130,11 @@ func TestDelete(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
+	ot.TextEncoding = ot.TextEncodingTypeUTF8
+	defer func() {
+		ot.TextEncoding = ot.TextEncodingTypeUTF8
+	}()
+
 	top := &operation.Operation{}
 
 	top.Insert("")
@@ -156,7 +162,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	if actual, expected := top.Ops, []*operation.Op{
-		&operation.Op{S: "foo"},
+		&operation.Op{S: []rune("foo")},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
@@ -171,18 +177,36 @@ func TestInsert(t *testing.T) {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
-	top.Insert("유니코드") // Korean for Unicode
+	top.Insert("유니코드😄")
 
 	if actual, expected := top.BaseLen, 0; actual != expected {
 		t.Errorf("expected base length of %d, got %d", expected, actual)
 	}
 
-	if actual, expected := top.TargetLen, 13; actual != expected {
+	if actual, expected := top.TargetLen, 14; actual != expected {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 
 	if actual, expected := top.Ops, []*operation.Op{
-		&operation.Op{S: "foobarbaz유니코드"},
+		&operation.Op{S: []rune("foobarbaz유니코드😄")},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+
+	// utf-16
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
+	top = operation.New().Insert("abc").Insert("가나다").Insert("αβγ").Insert("😄😃😀")
+
+	if actual, expected := top.BaseLen, 0; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 15; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{S: []rune{97, 98, 99, 44032, 45208, 45796, 945, 946, 947, 55357, 56836, 55357, 56835, 55357, 56832}},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
@@ -224,10 +248,10 @@ func TestMultipleOps(t *testing.T) {
 
 	if actual, expected := top.Ops, []*operation.Op{
 		&operation.Op{N: 1},
-		&operation.Op{S: "foobar"},
+		&operation.Op{S: []rune("foobar")},
 		&operation.Op{N: -3},
 		&operation.Op{N: 5},
-		&operation.Op{S: "baz"},
+		&operation.Op{S: []rune("baz")},
 		&operation.Op{N: -4},
 	}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
@@ -235,6 +259,11 @@ func TestMultipleOps(t *testing.T) {
 }
 
 func TestApply(t *testing.T) {
+	ot.TextEncoding = ot.TextEncodingTypeUTF8
+	defer func() {
+		ot.TextEncoding = ot.TextEncodingTypeUTF8
+	}()
+
 	// retain
 
 	top := operation.New().Retain(3)
@@ -261,13 +290,13 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
-	s, err = top.Apply("사랑해")
+	s, err = top.Apply("사랑💖")
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 
-	if actual, expected := s, "사랑해"; actual != expected {
+	if actual, expected := s, "사랑💖"; actual != expected {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
@@ -283,13 +312,13 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
-	s, err = operation.New().Insert("愛してる").Apply("")
+	s, err = operation.New().Insert("愛してる💖").Apply("")
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 
-	if actual, expected := s, "愛してる"; actual != expected {
+	if actual, expected := s, "愛してる💖"; actual != expected {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 
@@ -305,7 +334,7 @@ func TestApply(t *testing.T) {
 		t.Errorf("expected empty string, got %s", actual)
 	}
 
-	s, err = operation.New().Delete(1).Retain(3).Apply("你好世界")
+	s, err = operation.New().Delete(2).Retain(3).Apply("🌍你好世界")
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -317,23 +346,39 @@ func TestApply(t *testing.T) {
 
 	// combined
 
-	s, err = operation.New().Retain(1).Insert("dar").Delete(1).Retain(1).Insert("대성공").Apply("fox")
+	s, err = operation.New().Retain(2).Insert("far").Delete(1).Retain(1).Insert("대성공💯").Apply("🐺dog")
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 
-	if actual, expected := s, "fdarx대성공"; actual != expected {
+	if actual, expected := s, "🐺dfarg대성공💯"; actual != expected {
+		t.Errorf("expected %s, got %s", expected, actual)
+	}
+
+	// utf-16
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
+
+	s, err = operation.New().Retain(3).Insert("far").Delete(1).Retain(1).Insert("대성공💯").Apply("🐺dog")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if actual, expected := s, "🐺dfarg대성공💯"; actual != expected {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 }
 
 func TestTransform(t *testing.T) {
-	a := &operation.Operation{}
-	a.Retain(1)
+	ot.TextEncoding = ot.TextEncodingTypeUTF8
+	defer func() {
+		ot.TextEncoding = ot.TextEncodingTypeUTF8
+	}()
 
-	b := &operation.Operation{}
-	b.Retain(2)
+	a := operation.New().Retain(1)
+
+	b := operation.New().Retain(2)
 
 	_, _, err := operation.Transform(a, b)
 
@@ -343,70 +388,98 @@ func TestTransform(t *testing.T) {
 
 	// apply(apply(S, A), B') = apply(apply(S, B), A')
 
+	testTransform := func(s, o string, a, b *operation.Operation) {
+		a1, b1, err := operation.Transform(a, b)
+
+		if err != nil {
+			t.Fatalf("expected no error transforming, got %v", err)
+		}
+
+		if a1 == nil {
+			t.Fatalf("expected non-nil a', got nil")
+		}
+
+		if b1 == nil {
+			t.Fatalf("expected non-nil b', got nil")
+		}
+
+		as, err := a.Apply(s)
+		if err != nil {
+			t.Fatalf("expected no error applying A, got %v", err)
+		}
+
+		at, err := b1.Apply(as)
+		if err != nil {
+			t.Fatalf("expected no error applying B', got %v", err)
+		}
+
+		if actual, expected := at, o; actual != expected {
+			t.Fatalf("expected %s, got %s", expected, actual)
+		}
+
+		bs, err := b.Apply(s)
+		if err != nil {
+			t.Fatalf("expected no error applying B, got %v", err)
+		}
+
+		bt, err := a1.Apply(bs)
+		if err != nil {
+			t.Fatalf("expected no error applying A', got %v", err)
+		}
+
+		if actual, expected := bt, o; actual != expected {
+			t.Fatalf("expected %s, got %s", expected, actual)
+		}
+	}
+
 	s := "She is a girl!!!"
 	o := "He was 정말로 beautiful man."
+	a = operation.New().Retain(4).Delete(1).Insert("wa").Retain(4).Insert("beautiful ").Retain(4).Delete(3).Insert(".")
+	b = operation.New().Delete(2).Insert("H").Retain(5).Delete(1).Insert("정말로").Retain(1).Delete(4).Insert("man").Delete(2).Retain(1)
 
-	a = &operation.Operation{}
-	a.Retain(4).Delete(1).Insert("wa").Retain(4).Insert("beautiful ").Retain(4).Delete(3).Insert(".")
+	testTransform(s, o, a, b)
 
-	b = &operation.Operation{}
-	b.Delete(2).Insert("H").Retain(5).Delete(1).Insert("정말로").Retain(1).Delete(4).Insert("man").Delete(2).Retain(1)
+	// utf-16
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
 
-	a1, b1, err := operation.Transform(a, b)
+	s = "She is 😝 girl👧!"
+	o = "He was 👍👍 beautiful man."
+	a = operation.New().Retain(4).Delete(1).Insert("wa").Retain(5).Insert("beautiful ").Retain(4).Delete(3).Insert(".")
+	b = operation.New().Delete(2).Insert("H").Retain(5).Delete(2).Insert("👍👍").Retain(1).Delete(4).Insert("man").Delete(2).Retain(1)
 
-	if err != nil {
-		t.Fatalf("expected no error transforming, got %v", err)
-	}
-
-	if a1 == nil {
-		t.Fatalf("expected non-nil a', got nil")
-	}
-
-	if b1 == nil {
-		t.Fatalf("expected non-nil b', got nil")
-	}
-
-	as, err := a.Apply(s)
-	if err != nil {
-		t.Fatalf("expected no error applying A, got %v", err)
-	}
-
-	at, err := b1.Apply(as)
-	if err != nil {
-		t.Fatalf("expected no error applying B', got %v", err)
-	}
-
-	if actual, expected := at, o; actual != expected {
-		t.Fatalf("expected %s, got %s", expected, actual)
-	}
-
-	bs, err := b.Apply(s)
-	if err != nil {
-		t.Fatalf("expected no error applying B, got %v", err)
-	}
-
-	bt, err := a1.Apply(bs)
-	if err != nil {
-		t.Fatalf("expected no error applying A', got %v", err)
-	}
-
-	if actual, expected := bt, o; actual != expected {
-		t.Fatalf("expected %s, got %s", expected, actual)
-	}
+	testTransform(s, o, a, b)
 }
 
 func TestMarshal(t *testing.T) {
-	top := &operation.Operation{}
-	top.Retain(2).Insert("H").Retain(5).Insert("정말로").Delete(1).Retain(1).Insert("man").Delete(6).Retain(1)
+	ot.TextEncoding = ot.TextEncodingTypeUTF8
+	defer func() {
+		ot.TextEncoding = ot.TextEncodingTypeUTF8
+	}()
 
+	top := operation.New().Retain(2).Insert("H").Retain(5).Insert("정말로").Delete(1).Retain(1).Insert("man").Delete(6).Retain(1)
 	ops := top.Marshal()
 
 	if actual, expected := ops, []interface{}{2, "H", 5, "정말로", -1, 1, "man", -6, 1}; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %+v, got %+v", expected, actual)
 	}
+
+	// utf-16
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
+
+	top = operation.New().Insert("abc").Retain(1).Insert("가나다").Retain(2).Insert("αβγ").Retain(3).Insert("😄😃😀")
+	ops = top.Marshal()
+
+	if actual, expected := ops, []interface{}{"abc", 1, "가나다", 2, "αβγ", 3, "😄😃😀"}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
 }
 
 func TestUnmarshal(t *testing.T) {
+	ot.TextEncoding = ot.TextEncodingTypeUTF8
+	defer func() {
+		ot.TextEncoding = ot.TextEncodingTypeUTF8
+	}()
+
 	j := `[1, ["H"], -1]`
 	var ops []interface{}
 	err := json.Unmarshal([]byte(j), &ops)
@@ -419,7 +492,7 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatalf("expected ErrUnmarshalFailed, got %v", err)
 	}
 
-	j = `[2, "Sh", 5, -1, "정말로", 1, -4, "man", -2, 1]`
+	j = `[2, "Sh", 5, -1, "정말😄", 1, -4, "man", -2, 1]`
 	err = json.Unmarshal([]byte(j), &ops)
 	if err != nil {
 		t.Fatalf("test case error")
@@ -436,12 +509,12 @@ func TestUnmarshal(t *testing.T) {
 
 	if actual, expected := top.Ops, []*operation.Op{
 		&operation.Op{N: 2},
-		&operation.Op{S: "Sh"},
+		&operation.Op{S: []rune("Sh")},
 		&operation.Op{N: 5},
-		&operation.Op{S: "정말로"},
+		&operation.Op{S: []rune("정말😄")},
 		&operation.Op{N: -1},
 		&operation.Op{N: 1},
-		&operation.Op{S: "man"},
+		&operation.Op{S: []rune("man")},
 		&operation.Op{N: -6},
 		&operation.Op{N: 1},
 	}; !reflect.DeepEqual(actual, expected) {
@@ -453,6 +526,44 @@ func TestUnmarshal(t *testing.T) {
 	}
 
 	if actual, expected := top.TargetLen, 17; actual != expected {
+		t.Errorf("expected target length of %d, got %d", expected, actual)
+	}
+
+	// utf-16
+	ot.TextEncoding = ot.TextEncodingTypeUTF16
+
+	j = `["abc", 1, "가나다", 2, "αβγ", 3, "😄😃😀"]`
+	err = json.Unmarshal([]byte(j), &ops)
+	if err != nil {
+		t.Fatalf("test case error")
+	}
+
+	top, err = operation.Unmarshal(ops)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if top.Ops == nil {
+		t.Fatalf("expected list of ops not to be nil, got nil")
+	}
+
+	if actual, expected := top.Ops, []*operation.Op{
+		&operation.Op{S: []rune{97, 98, 99}},
+		&operation.Op{N: 1},
+		&operation.Op{S: []rune{44032, 45208, 45796}},
+		&operation.Op{N: 2},
+		&operation.Op{S: []rune{945, 946, 947}},
+		&operation.Op{N: 3},
+		&operation.Op{S: []rune{55357, 56836, 55357, 56835, 55357, 56832}},
+	}; !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %+v, got %+v", expected, actual)
+	}
+
+	if actual, expected := top.BaseLen, 6; actual != expected {
+		t.Errorf("expected base length of %d, got %d", expected, actual)
+	}
+
+	if actual, expected := top.TargetLen, 21; actual != expected {
 		t.Errorf("expected target length of %d, got %d", expected, actual)
 	}
 }
