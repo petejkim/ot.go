@@ -62,10 +62,12 @@ func (s *Session) HandleEvents() {
 			if !ok {
 				break
 			}
-			username := data["username"]
-			if username == nil {
+			username, ok := data["username"].(string)
+			if !ok || username == "" {
 				break
 			}
+
+			s.SetName(c.ID, username)
 
 			err := c.Send(&Event{"registered", c.ID})
 			if err != nil {

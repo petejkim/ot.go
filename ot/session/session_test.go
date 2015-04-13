@@ -72,6 +72,30 @@ func TestRemoveClient(t *testing.T) {
 	}
 }
 
+func TestSetName(t *testing.T) {
+	s := session.New("")
+	s.AddClient("foo")
+	s.AddClient("bar")
+	s.AddClient("baz")
+
+	name := "Bruce Lee"
+	s.SetName("bar", name)
+	if actual := s.Clients["foo"].Name; actual != "" {
+		t.Errorf("expected foo not to have a name, got %s", actual)
+	}
+
+	if actual := s.Clients["bar"].Name; actual != name {
+		t.Errorf("expected bar's name to equal %s, got %s", name, actual)
+	}
+
+	if actual := s.Clients["baz"].Name; actual != "" {
+		t.Errorf("expected baz not to have a name, got %s", actual)
+	}
+
+	// setting non-existent client's name shouldn't blow up
+	s.SetName("qux", name)
+}
+
 func TestAddOperation(t *testing.T) {
 	s := session.New("I love you.")
 

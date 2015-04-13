@@ -33,6 +33,13 @@ func (s *Session) RemoveClient(id string) {
 	delete(s.Clients, id)
 }
 
+func (s *Session) SetName(id, name string) {
+	c := s.Clients[id]
+	if c != nil {
+		c.Name = name
+	}
+}
+
 func (s *Session) AddOperation(revision int, op *operation.Operation) (*operation.Operation, error) {
 	if revision < 0 || len(s.Operations) < revision {
 		return nil, ErrInvalidRevision
