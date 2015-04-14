@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nitrous-io/ot.go/ot/operation"
+	"github.com/nitrous-io/ot.go/ot/selection"
 	"github.com/nitrous-io/ot.go/ot/session"
 )
 
@@ -94,6 +95,31 @@ func TestSetName(t *testing.T) {
 
 	// setting non-existent client's name shouldn't blow up
 	s.SetName("qux", name)
+}
+
+func TestSetSelection(t *testing.T) {
+	s := session.New("")
+	s.AddClient("foo")
+	s.AddClient("bar")
+	s.AddClient("baz")
+
+	sel := &selection.Selection{[]selection.Range{{5, 9}}}
+	s.SetSelection("bar", sel)
+
+	if actual := s.Clients["foo"].Selection; reflect.DeepEqual(&actual, sel) {
+		t.Errorf("expected foo's selection not to equal %+v, got %+s", sel, &actual)
+	}
+
+	if actual := s.Clients["bar"].Selection; !reflect.DeepEqual(&actual, sel) {
+		t.Errorf("expected bar's selection to equal %+v, got %+s", sel, &actual)
+	}
+
+	if actual := s.Clients["baz"].Selection; reflect.DeepEqual(&actual, sel) {
+		t.Errorf("expected baz's selection not to equal %+v, got %+s", sel, &actual)
+	}
+
+	// setting non-existent client's name shouldn't blow up
+	s.SetSelection("qux", sel)
 }
 
 func TestAddOperation(t *testing.T) {

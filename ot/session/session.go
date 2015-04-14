@@ -40,6 +40,13 @@ func (s *Session) SetName(id, name string) {
 	}
 }
 
+func (s *Session) SetSelection(id string, sel *selection.Selection) {
+	c := s.Clients[id]
+	if c != nil {
+		c.Selection = *sel
+	}
+}
+
 func (s *Session) AddOperation(revision int, op *operation.Operation) (*operation.Operation, error) {
 	if revision < 0 || len(s.Operations) < revision {
 		return nil, ErrInvalidRevision

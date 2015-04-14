@@ -125,6 +125,7 @@ func (s *Session) HandleEvents() {
 			}
 
 			if sel, ok := top2.Meta.(*selection.Selection); ok {
+				s.SetSelection(c.ID, sel)
 				c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal(), sel.Marshal()}})
 			} else {
 				c.Broadcast(&Event{"op", []interface{}{c.ID, top2.Marshal()}})
@@ -138,6 +139,7 @@ func (s *Session) HandleEvents() {
 			if err != nil {
 				break
 			}
+			s.SetSelection(c.ID, sel)
 			c.Broadcast(&Event{"sel", []interface{}{c.ID, sel.Marshal()}})
 		}
 	}
